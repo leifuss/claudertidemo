@@ -80,6 +80,33 @@ class PTMParser {
             bias
         });
 
+        // Debug: Show first bytes of pixel data to understand layout
+        console.log('=== RAW DATA ANALYSIS ===');
+        console.log('Header ended at byte offset:', offset);
+        console.log('Expected pixel data size:', width * height * 9, 'bytes');
+        console.log('Actual remaining bytes:', buffer.byteLength - offset);
+
+        // Dump first 36 bytes (4 pixels worth) to see pattern
+        const firstBytes = [];
+        for (let i = 0; i < 36; i++) {
+            firstBytes.push(dataView.getUint8(offset + i));
+        }
+        console.log('First 36 bytes of pixel data:', firstBytes);
+        console.log('As groups of 9:', [
+            firstBytes.slice(0, 9),
+            firstBytes.slice(9, 18),
+            firstBytes.slice(18, 27),
+            firstBytes.slice(27, 36)
+        ]);
+
+        // Also dump bytes at start of second scanline
+        const secondLineStart = offset + width * 9;
+        const secondLineBytes = [];
+        for (let i = 0; i < 18; i++) {
+            secondLineBytes.push(dataView.getUint8(secondLineStart + i));
+        }
+        console.log('First 18 bytes of line 2 (offset ' + secondLineStart + '):', secondLineBytes);
+
         // Parse pixel data based on format
         let ptmData;
 
