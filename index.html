@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTI Viewer v12 - Reflectance Transformation Imaging</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <h1>RTI Viewer</h1>
+            <p class="subtitle">Reflectance Transformation Imaging Viewer</p>
+        </header>
+
+        <main class="main-content">
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <h2>Upload RTI File</h2>
+                    <p>Drag and drop a PTM file here, or click to browse</p>
+                    <p class="file-types">Supported formats: .ptm (Polynomial Texture Map)</p>
+                    <input type="file" id="fileInput" accept=".ptm" hidden>
+                    <button class="upload-btn" id="browseBtn">Browse Files</button>
+                </div>
+                <div class="demo-section">
+                    <p>Or try with a demo:</p>
+                    <button class="demo-btn" id="loadDemoBtn">Load Demo Image</button>
+                </div>
+            </div>
+
+            <div class="viewer-section" id="viewerSection" style="display: none;">
+                <div class="viewer-container">
+                    <canvas id="rtiCanvas"></canvas>
+                    <div class="light-control" id="lightControl">
+                        <div class="light-indicator" id="lightIndicator"></div>
+                    </div>
+                </div>
+
+                <div class="controls-panel">
+                    <div class="control-group">
+                        <h3>View Mode</h3>
+                        <div class="view-modes">
+                            <button class="mode-btn active" data-mode="default">Default</button>
+                            <button class="mode-btn" data-mode="specular">Specular</button>
+                            <button class="mode-btn" data-mode="normals">Normals</button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Light Position</h3>
+                        <div class="light-position-display">
+                            <span>X: <span id="lightX">0.00</span></span>
+                            <span>Y: <span id="lightY">0.00</span></span>
+                        </div>
+                        <p class="control-hint">Click and drag on the circular control to change light direction</p>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Enhancements</h3>
+                        <div class="slider-control">
+                            <label for="specularSlider">Specular Enhancement</label>
+                            <input type="range" id="specularSlider" min="0" max="2" step="0.1" value="1">
+                            <span id="specularValue">1.0</span>
+                        </div>
+                        <div class="slider-control">
+                            <label for="diffuseSlider">Diffuse Gain</label>
+                            <input type="range" id="diffuseSlider" min="0" max="2" step="0.1" value="1">
+                            <span id="diffuseValue">1.0</span>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Image Info</h3>
+                        <div class="image-info">
+                            <p>Dimensions: <span id="imageDimensions">-</span></p>
+                            <p>Format: <span id="imageFormat">-</span></p>
+                        </div>
+                    </div>
+
+                    <button class="new-file-btn" id="newFileBtn">Load New File</button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>RTI Viewer - Built for Cultural Heritage imaging analysis</p>
+            <p class="credits">Based on <a href="https://culturalheritageimaging.org/Technologies/RTI/" target="_blank">Cultural Heritage Imaging</a> technology</p>
+        </footer>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Loading RTI file...</p>
+    </div>
+
+    <script src="js/ptm-parser.js"></script>
+    <script src="js/webgl-renderer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
