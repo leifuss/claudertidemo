@@ -125,10 +125,11 @@ class PTMParser {
 
         if (isLRGB) {
             // LRGB format: coefficients shared across all color channels
-            // Data is interleaved per-pixel: [R, G, B, a0, a1, a2, a3, a4, a5] for each pixel
+            // Per PTM spec: coefficients FIRST, then RGB
+            // Data is interleaved per-pixel: [a0, a1, a2, a3, a4, a5, R, G, B] for each pixel
             // Scanlines are stored bottom-up
 
-            const bytesPerLine = width * 9; // 9 bytes per pixel (3 RGB + 6 coefficients)
+            const bytesPerLine = width * 9; // 9 bytes per pixel (6 coefficients + 3 RGB)
 
             for (let y = 0; y < height; y++) {
                 // PTM files are stored bottom-up, we want top-down
@@ -139,16 +140,16 @@ class PTMParser {
                     const srcIdx = lineOffset + x * 9;
                     const destIdx = destY * width + x;
 
-                    // Read RGB (first 3 bytes of each pixel)
-                    rgb[destIdx * 3] = dataView.getUint8(srcIdx);
-                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 1);
-                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 2);
-
-                    // Read 6 coefficients (bytes 3-8 of each pixel)
+                    // Read 6 coefficients FIRST (bytes 0-5 of each pixel)
                     for (let c = 0; c < 6; c++) {
-                        const rawValue = dataView.getUint8(srcIdx + 3 + c);
+                        const rawValue = dataView.getUint8(srcIdx + c);
                         coefficients[c][destIdx] = (rawValue - bias[c]) * scale[c];
                     }
+
+                    // Read RGB (bytes 6-8 of each pixel)
+                    rgb[destIdx * 3] = dataView.getUint8(srcIdx + 6);
+                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 7);
+                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 8);
                 }
             }
         } else {
