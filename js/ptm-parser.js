@@ -131,18 +131,19 @@ class PTMParser {
 
     /**
      * Parse uncompressed PTM data (LRGB or RGB format)
+     *
+     * PTM_1.2 uses PLANAR storage:
+     * - First: 6 coefficient planes (each width*height bytes)
+     * - Then: RGB data (width*height*3 bytes)
+     * - Scanlines stored bottom-to-top
      */
     parseUncompressedPTM(buffer, offset, width, height, format, scale, bias) {
         const dataView = new DataView(buffer);
         const pixelCount = width * height;
 
-        // For LRGB: 9 bytes per pixel (RGB + 6 coefficients)
-        // For RGB: 18 bytes per pixel (6 coefficients per channel)
         const isLRGB = format === 'PTM_FORMAT_LRGB';
-        const bytesPerPixel = isLRGB ? 9 : 18;
 
         // Allocate arrays for coefficients
-        // We'll store 6 coefficient planes + RGB
         const coefficients = new Array(6);
         for (let i = 0; i < 6; i++) {
             coefficients[i] = new Float32Array(pixelCount);
@@ -151,55 +152,98 @@ class PTMParser {
         const rgb = new Uint8Array(pixelCount * 3);
 
         if (isLRGB) {
-            // LRGB format: Try interleaved [R, G, B, a0, a1, a2, a3, a4, a5] per pixel
-            // Try WITHOUT bottom-up flip (read top-down as stored)
+            // PTM_1.2 LRGB format: PLANAR storage
+            // First 6 planes of coefficients (each width*height bytes)
+            // Then RGB data (width*height*3 bytes)
+            // Scanlines stored bottom-to-top
 
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const srcIdx = offset + (y * width + x) * 9;
-                    const destIdx = y * width + x;  // No flip
+            console.log('Parsing PTM_1.2 LRGB with PLANAR storage');
 
-                    // Read RGB first
-                    rgb[destIdx * 3] = dataView.getUint8(srcIdx);
-                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 1);
-                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 2);
+            // Read 6 coefficient planes
+            for (let c = 0; c < 6; c++) {
+                const planeOffset = offset + c * pixelCount;
 
-                    // Read 6 coefficients
-                    for (let c = 0; c < 6; c++) {
-                        const rawValue = dataView.getUint8(srcIdx + 3 + c);
+                for (let y = 0; y < height; y++) {
+                    // PTM stores bottom-to-top, we want top-to-bottom
+                    const srcY = height - 1 - y;
+
+                    for (let x = 0; x < width; x++) {
+                        const srcIdx = planeOffset + srcY * width + x;
+                        const destIdx = y * width + x;
+
+                        const rawValue = dataView.getUint8(srcIdx);
                         coefficients[c][destIdx] = (rawValue - bias[c]) * scale[c];
                     }
                 }
             }
-        } else {
-            // RGB format: separate coefficients for each channel
-            // For simplicity, we'll convert to LRGB-style by averaging coefficients
-            // This is a simplification - full RGB PTM would need 18 coefficient planes
+
+            // Read RGB data (after all coefficient planes)
+            const rgbOffset = offset + 6 * pixelCount;
 
             for (let y = 0; y < height; y++) {
-                const destY = height - 1 - y;
-                const lineOffset = offset + y * width * 18;
+                // PTM stores bottom-to-top
+                const srcY = height - 1 - y;
 
                 for (let x = 0; x < width; x++) {
-                    const srcIdx = lineOffset + x * 18;
-                    const destIdx = destY * width + x;
+                    const srcIdx = rgbOffset + (srcY * width + x) * 3;
+                    const destIdx = y * width + x;
 
-                    // Average the coefficients across R, G, B channels for luminance
-                    for (let c = 0; c < 6; c++) {
-                        const rCoef = (dataView.getUint8(srcIdx + c) - bias[c]) * scale[c];
-                        const gCoef = (dataView.getUint8(srcIdx + 6 + c) - bias[c]) * scale[c];
-                        const bCoef = (dataView.getUint8(srcIdx + 12 + c) - bias[c]) * scale[c];
-                        coefficients[c][destIdx] = (rCoef + gCoef + bCoef) / 3;
+                    rgb[destIdx * 3] = dataView.getUint8(srcIdx);
+                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 1);
+                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 2);
+                }
+            }
+
+            console.log('Coefficient plane 0, first 10 values:', Array.from(coefficients[0].slice(0, 10)));
+            console.log('RGB first 10 values:', Array.from(rgb.slice(0, 10)));
+        } else {
+            // RGB format: 18 coefficient planes (6 per channel)
+            // For simplicity, we'll convert to LRGB-style by averaging coefficients
+
+            for (let c = 0; c < 6; c++) {
+                // Average across R, G, B channels
+                for (let ch = 0; ch < 3; ch++) {
+                    const planeOffset = offset + (ch * 6 + c) * pixelCount;
+
+                    for (let y = 0; y < height; y++) {
+                        const srcY = height - 1 - y;
+
+                        for (let x = 0; x < width; x++) {
+                            const srcIdx = planeOffset + srcY * width + x;
+                            const destIdx = y * width + x;
+
+                            const rawValue = dataView.getUint8(srcIdx);
+                            const coefValue = (rawValue - bias[c]) * scale[c];
+
+                            if (ch === 0) {
+                                coefficients[c][destIdx] = coefValue;
+                            } else {
+                                coefficients[c][destIdx] += coefValue;
+                            }
+                        }
                     }
+                }
 
-                    // Compute a representative RGB from the polynomial at neutral light
-                    // Using light direction (0, 0) - from directly above
-                    const lumR = dataView.getUint8(srcIdx + 5);
-                    const lumG = dataView.getUint8(srcIdx + 11);
-                    const lumB = dataView.getUint8(srcIdx + 17);
-                    rgb[destIdx * 3] = lumR;
-                    rgb[destIdx * 3 + 1] = lumG;
-                    rgb[destIdx * 3 + 2] = lumB;
+                // Average the coefficients
+                for (let i = 0; i < pixelCount; i++) {
+                    coefficients[c][i] /= 3;
+                }
+            }
+
+            // For RGB format, compute representative color at neutral light
+            // Use the constant coefficient (a5) for each channel
+            const a5Offset = 5;
+            for (let y = 0; y < height; y++) {
+                const srcY = height - 1 - y;
+
+                for (let x = 0; x < width; x++) {
+                    const destIdx = y * width + x;
+
+                    for (let ch = 0; ch < 3; ch++) {
+                        const planeOffset = offset + (ch * 6 + a5Offset) * pixelCount;
+                        const srcIdx = planeOffset + srcY * width + x;
+                        rgb[destIdx * 3 + ch] = dataView.getUint8(srcIdx);
+                    }
                 }
             }
         }
