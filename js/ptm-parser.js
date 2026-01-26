@@ -151,36 +151,22 @@ class PTMParser {
         const rgb = new Uint8Array(pixelCount * 3);
 
         if (isLRGB) {
-            // LRGB format: Data stored in PLANES
-            // Try order: R, G, B planes first, then a0, a1, a2, a3, a4, a5
-            // Each plane is width*height bytes, scanlines bottom-up within each plane
+            // LRGB format: Try interleaved [R, G, B, a0, a1, a2, a3, a4, a5] per pixel
+            // Try WITHOUT bottom-up flip (read top-down as stored)
 
-            const planeSize = width * height;
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const srcIdx = offset + (y * width + x) * 9;
+                    const destIdx = y * width + x;  // No flip
 
-            // Read 3 RGB planes FIRST
-            for (let channel = 0; channel < 3; channel++) {
-                const planeOffset = offset + channel * planeSize;
-                for (let y = 0; y < height; y++) {
-                    // PTM files are stored bottom-up, we want top-down
-                    const destY = height - 1 - y;
-                    for (let x = 0; x < width; x++) {
-                        const srcIdx = planeOffset + y * width + x;
-                        const destIdx = destY * width + x;
-                        rgb[destIdx * 3 + channel] = dataView.getUint8(srcIdx);
-                    }
-                }
-            }
+                    // Read RGB first
+                    rgb[destIdx * 3] = dataView.getUint8(srcIdx);
+                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 1);
+                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 2);
 
-            // Read 6 coefficient planes AFTER RGB
-            const coeffOffset = offset + 3 * planeSize;
-            for (let c = 0; c < 6; c++) {
-                const planeOffset = coeffOffset + c * planeSize;
-                for (let y = 0; y < height; y++) {
-                    const destY = height - 1 - y;
-                    for (let x = 0; x < width; x++) {
-                        const srcIdx = planeOffset + y * width + x;
-                        const destIdx = destY * width + x;
-                        const rawValue = dataView.getUint8(srcIdx);
+                    // Read 6 coefficients
+                    for (let c = 0; c < 6; c++) {
+                        const rawValue = dataView.getUint8(srcIdx + 3 + c);
                         coefficients[c][destIdx] = (rawValue - bias[c]) * scale[c];
                     }
                 }
