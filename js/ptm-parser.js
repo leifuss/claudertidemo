@@ -151,32 +151,38 @@ class PTMParser {
         const rgb = new Uint8Array(pixelCount * 3);
 
         if (isLRGB) {
-            // LRGB format: coefficients shared across all color channels
-            // Per PTM spec: coefficients FIRST, then RGB
-            // Data is interleaved per-pixel: [a0, a1, a2, a3, a4, a5, R, G, B] for each pixel
-            // Scanlines are stored bottom-up
+            // LRGB format: Data stored in PLANES (not interleaved)
+            // Order: all a0, all a1, all a2, all a3, all a4, all a5, all R, all G, all B
+            // Each plane is width*height bytes, scanlines bottom-up within each plane
 
-            const bytesPerLine = width * 9; // 9 bytes per pixel (6 coefficients + 3 RGB)
+            const planeSize = width * height;
 
-            for (let y = 0; y < height; y++) {
-                // PTM files are stored bottom-up, we want top-down
-                const destY = height - 1 - y;
-                const lineOffset = offset + y * bytesPerLine;
-
-                for (let x = 0; x < width; x++) {
-                    const srcIdx = lineOffset + x * 9;
-                    const destIdx = destY * width + x;
-
-                    // Read 6 coefficients FIRST (bytes 0-5 of each pixel)
-                    for (let c = 0; c < 6; c++) {
-                        const rawValue = dataView.getUint8(srcIdx + c);
+            // Read 6 coefficient planes
+            for (let c = 0; c < 6; c++) {
+                const planeOffset = offset + c * planeSize;
+                for (let y = 0; y < height; y++) {
+                    // PTM files are stored bottom-up, we want top-down
+                    const destY = height - 1 - y;
+                    for (let x = 0; x < width; x++) {
+                        const srcIdx = planeOffset + y * width + x;
+                        const destIdx = destY * width + x;
+                        const rawValue = dataView.getUint8(srcIdx);
                         coefficients[c][destIdx] = (rawValue - bias[c]) * scale[c];
                     }
+                }
+            }
 
-                    // Read RGB (bytes 6-8 of each pixel)
-                    rgb[destIdx * 3] = dataView.getUint8(srcIdx + 6);
-                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 7);
-                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 8);
+            // Read 3 RGB planes
+            const rgbOffset = offset + 6 * planeSize;
+            for (let channel = 0; channel < 3; channel++) {
+                const planeOffset = rgbOffset + channel * planeSize;
+                for (let y = 0; y < height; y++) {
+                    const destY = height - 1 - y;
+                    for (let x = 0; x < width; x++) {
+                        const srcIdx = planeOffset + y * width + x;
+                        const destIdx = destY * width + x;
+                        rgb[destIdx * 3 + channel] = dataView.getUint8(srcIdx);
+                    }
                 }
             }
         } else {
