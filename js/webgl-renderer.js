@@ -244,22 +244,54 @@ class RTIRenderer {
         const gl = this.gl;
         this.ptmData = ptmData;
 
+        console.log('=== loadPTM called ===');
+
         // Resize canvas to match PTM dimensions
         this.canvas.width = ptmData.width;
         this.canvas.height = ptmData.height;
         gl.viewport(0, 0, ptmData.width, ptmData.height);
+        console.log('Canvas resized to:', ptmData.width, 'x', ptmData.height);
 
         // Create coefficient textures
+        console.log('Creating coefficient textures...');
         this.createCoefficientTextures(ptmData);
 
         // Create RGB texture
+        console.log('Creating RGB texture...');
         this.createRGBTexture(ptmData);
 
         // Create normal texture
+        console.log('Creating normal texture...');
         this.createNormalTexture(ptmData);
 
+        // Check for WebGL errors
+        const error = gl.getError();
+        if (error !== gl.NO_ERROR) {
+            console.error('WebGL error after texture creation:', error);
+        }
+
         // Initial render
+        console.log('Calling initial render...');
         this.render();
+
+        // Check canvas has content
+        const pixels = new Uint8Array(4);
+        gl.readPixels(ptmData.width / 2, ptmData.height / 2, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        console.log('Center pixel after render:', pixels);
+
+        console.log('=== loadPTM complete ===');
+    }
+
+    /**
+     * Draw a simple test pattern to verify WebGL works
+     */
+    drawTestPattern() {
+        const gl = this.gl;
+
+        // Simple red clear to verify WebGL is functional
+        gl.clearColor(1.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        console.log('Drew red test pattern');
     }
 
     /**
@@ -429,14 +461,29 @@ class RTIRenderer {
      * Render the PTM with current settings
      */
     render() {
-        if (!this.ptmData) return;
+        if (!this.ptmData) {
+            console.warn('render() called but no ptmData');
+            return;
+        }
 
         const gl = this.gl;
+
+        // Check for WebGL context loss
+        if (gl.isContextLost()) {
+            console.error('WebGL context is lost!');
+            return;
+        }
 
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         gl.useProgram(this.program);
+
+        // Log first render
+        if (!this._hasRendered) {
+            console.log('First render - light:', this.lightX, this.lightY, 'mode:', this.viewMode);
+            this._hasRendered = true;
+        }
 
         // Bind position buffer
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
@@ -486,6 +533,47 @@ class RTIRenderer {
 
         // Draw
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        // Check for errors after draw
+        const error = gl.getError();
+        if (error !== gl.NO_ERROR) {
+            console.error('WebGL error after draw:', error);
+        }
+    }
+
+    /**
+     * Debug: Render just the RGB texture without PTM processing
+     */
+    renderRGBOnly() {
+        if (!this.ptmData) return;
+
+        const gl = this.gl;
+        const { width, height, rgb } = this.ptmData;
+
+        // Create a 2D canvas context to draw the RGB data directly
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const ctx = tempCanvas.getContext('2d');
+        const imageData = ctx.createImageData(width, height);
+
+        for (let i = 0; i < width * height; i++) {
+            imageData.data[i * 4] = rgb[i * 3];
+            imageData.data[i * 4 + 1] = rgb[i * 3 + 1];
+            imageData.data[i * 4 + 2] = rgb[i * 3 + 2];
+            imageData.data[i * 4 + 3] = 255;
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+        // Copy to main canvas
+        const mainCtx = this.canvas.getContext('2d');
+        if (mainCtx) {
+            mainCtx.drawImage(tempCanvas, 0, 0);
+            console.log('Drew RGB directly with 2D context');
+        } else {
+            console.log('Cannot get 2D context (WebGL canvas)');
+        }
     }
 
     /**

@@ -182,14 +182,42 @@ class RTIViewerApp {
      * Initialize the WebGL renderer with PTM data
      */
     initViewer(ptmData) {
+        console.log('=== initViewer called ===');
+        console.log('PTM data dimensions:', ptmData.width, 'x', ptmData.height);
+        console.log('PTM format:', ptmData.format);
+
+        // Debug: Check RGB data
+        console.log('RGB array length:', ptmData.rgb.length, '(expected:', ptmData.width * ptmData.height * 3, ')');
+        console.log('First 20 RGB values:', Array.from(ptmData.rgb.slice(0, 20)));
+
+        // Debug: Check coefficient data
+        console.log('Coefficients arrays:', ptmData.coefficients.length);
+        if (ptmData.coefficients[0]) {
+            console.log('Coeff[0] length:', ptmData.coefficients[0].length);
+            console.log('First 10 coeff[5] values (a5/constant):', Array.from(ptmData.coefficients[5].slice(0, 10)));
+        }
+
         // Clean up existing renderer
         if (this.renderer) {
             this.renderer.dispose();
         }
 
         // Create new renderer
-        this.renderer = new RTIRenderer(this.canvas);
-        this.renderer.loadPTM(ptmData);
+        try {
+            this.renderer = new RTIRenderer(this.canvas);
+            console.log('Renderer created successfully');
+            console.log('Canvas size:', this.canvas.width, 'x', this.canvas.height);
+
+            this.renderer.loadPTM(ptmData);
+            console.log('PTM loaded into renderer');
+
+            // Debug: Draw a test pattern to verify WebGL is working
+            // this.renderer.drawTestPattern();
+        } catch (error) {
+            console.error('Error creating renderer:', error);
+            alert('WebGL Error: ' + error.message);
+            return;
+        }
 
         // Update info display
         this.imageDimensions.textContent = `${ptmData.width} x ${ptmData.height}`;
@@ -202,6 +230,8 @@ class RTIViewerApp {
         this.specularValue.textContent = '1.0';
         this.diffuseSlider.value = 1;
         this.diffuseValue.textContent = '1.0';
+
+        console.log('=== initViewer complete ===');
     }
 
     /**
