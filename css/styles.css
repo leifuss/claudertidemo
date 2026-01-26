@@ -1,0 +1,482 @@
+/* RTI Viewer Styles */
+:root {
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary-color: #64748b;
+    --background: #0f172a;
+    --surface: #1e293b;
+    --surface-light: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --border-color: #475569;
+    --accent: #38bdf8;
+    --success: #22c55e;
+    --warning: #f59e0b;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: var(--background);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Header */
+.header {
+    padding: 1.5rem 2rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.header .subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* Upload Section */
+.upload-section {
+    max-width: 600px;
+    width: 100%;
+    margin-top: 2rem;
+}
+
+.upload-area {
+    background: var(--surface);
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover,
+.upload-area.dragover {
+    border-color: var(--primary-color);
+    background: var(--surface-light);
+}
+
+.upload-icon {
+    color: var(--secondary-color);
+    margin-bottom: 1.5rem;
+}
+
+.upload-area h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.upload-area p {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.file-types {
+    font-size: 0.85rem;
+    color: var(--secondary-color) !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.upload-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.upload-btn:hover {
+    background: var(--primary-dark);
+}
+
+.demo-section {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.demo-section p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.demo-btn {
+    background: var(--surface-light);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.6rem 1.5rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.demo-btn:hover {
+    background: var(--surface);
+    border-color: var(--accent);
+}
+
+/* Viewer Section */
+.viewer-section {
+    display: flex;
+    gap: 2rem;
+    width: 100%;
+    max-width: 1400px;
+}
+
+.viewer-container {
+    flex: 1;
+    position: relative;
+    background: var(--surface);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 500px;
+}
+
+#rtiCanvas {
+    max-width: 100%;
+    max-height: 80vh;
+    display: block;
+}
+
+/* Light Control */
+.light-control {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 120px;
+    height: 120px;
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.light-control::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, transparent 0%, transparent 40%, rgba(255,255,255,0.05) 100%);
+}
+
+.light-control::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 100%;
+    background: var(--border-color);
+}
+
+.light-indicator {
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(56, 189, 248, 0.5);
+    pointer-events: none;
+    left: 50%;
+    top: 50%;
+}
+
+/* Controls Panel */
+.controls-panel {
+    width: 300px;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.control-group {
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.control-group:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.control-group h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}
+
+/* View Mode Buttons */
+.view-modes {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    background: var(--surface-light);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-btn:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
+.mode-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* Light Position Display */
+.light-position-display {
+    display: flex;
+    gap: 1.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+}
+
+.control-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Slider Controls */
+.slider-control {
+    margin-bottom: 1rem;
+}
+
+.slider-control:last-child {
+    margin-bottom: 0;
+}
+
+.slider-control label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.slider-control input[type="range"] {
+    width: calc(100% - 40px);
+    height: 4px;
+    background: var(--surface-light);
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+    vertical-align: middle;
+}
+
+.slider-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.slider-control input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+.slider-control span {
+    display: inline-block;
+    width: 35px;
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--accent);
+    vertical-align: middle;
+}
+
+/* Image Info */
+.image-info p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.image-info span {
+    color: var(--text-primary);
+}
+
+/* New File Button */
+.new-file-btn {
+    background: var(--surface-light);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: auto;
+}
+
+.new-file-btn:hover {
+    background: var(--surface);
+    border-color: var(--accent);
+}
+
+/* Footer */
+.footer {
+    padding: 1.5rem 2rem;
+    background: var(--surface);
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.footer p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.footer .credits {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.footer a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.footer a:hover {
+    text-decoration: underline;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid var(--surface-light);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-overlay p {
+    color: var(--text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .viewer-section {
+        flex-direction: column;
+    }
+
+    .controls-panel {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .control-group {
+        flex: 1;
+        min-width: 200px;
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .light-control {
+        width: 100px;
+        height: 100px;
+    }
+}
+
+@media (max-width: 600px) {
+    .main-content {
+        padding: 1rem;
+    }
+
+    .upload-area {
+        padding: 2rem 1rem;
+    }
+
+    .controls-panel {
+        flex-direction: column;
+    }
+
+    .control-group {
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+}
