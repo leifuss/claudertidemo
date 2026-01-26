@@ -28,15 +28,14 @@ class PTMParser {
      */
     async parse(buffer) {
         const dataView = new DataView(buffer);
-        const decoder = new TextDecoder('ascii');
 
         let offset = 0;
 
-        // Read header lines
+        // Read header lines (PTM format has 6 header lines)
         const headerLines = [];
         let currentLine = '';
 
-        while (headerLines.length < 4) {
+        while (headerLines.length < 6) {
             const byte = dataView.getUint8(offset++);
             const char = String.fromCharCode(byte);
 
@@ -49,24 +48,28 @@ class PTMParser {
         }
 
         // Parse header
+        // Line 0: Version (e.g., "PTM_1.2")
         const version = headerLines[0];
         if (!version.startsWith('PTM_1.')) {
             throw new Error(`Unsupported PTM version: ${version}`);
         }
 
+        // Line 1: Format (e.g., "PTM_FORMAT_LRGB")
         const format = headerLines[1];
         if (!(format in this.PTM_FORMATS)) {
             throw new Error(`Unsupported PTM format: ${format}`);
         }
 
-        const dimensions = headerLines[2].split(/\s+/);
-        const width = parseInt(dimensions[0]);
-        const height = parseInt(dimensions[1]);
+        // Line 2: Width
+        // Line 3: Height
+        const width = parseInt(headerLines[2]);
+        const height = parseInt(headerLines[3]);
 
-        // Parse scale and bias coefficients
-        const scalesBiases = headerLines[3].split(/\s+/).map(Number);
-        const scale = scalesBiases.slice(0, 6);
-        const bias = scalesBiases.slice(6, 12);
+        // Line 4: Scale coefficients (6 floats)
+        const scale = headerLines[4].split(/\s+/).map(Number);
+
+        // Line 5: Bias coefficients (6 integers)
+        const bias = headerLines[5].split(/\s+/).map(Number);
 
         console.log('PTM Header:', {
             version,

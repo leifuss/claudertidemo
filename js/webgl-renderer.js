@@ -60,18 +60,30 @@ class RTIRenderer {
             uniform float u_specularEnhancement;
             uniform float u_diffuseGain;
 
+            // Coefficient ranges for denormalization
+            uniform vec2 u_coeffRange0; // min, max for a0
+            uniform vec2 u_coeffRange1; // min, max for a1
+            uniform vec2 u_coeffRange2; // min, max for a2
+            uniform vec2 u_coeffRange3; // min, max for a3
+            uniform vec2 u_coeffRange4; // min, max for a4
+            uniform vec2 u_coeffRange5; // min, max for a5
+
+            float denormalize(float normalized, vec2 range) {
+                return mix(range.x, range.y, normalized);
+            }
+
             void main() {
                 // Sample coefficient textures
                 vec3 coeff012 = texture2D(u_coeffTex0, v_texCoord).rgb;
                 vec3 coeff345 = texture2D(u_coeffTex1, v_texCoord).rgb;
 
-                // Unpack coefficients (stored as 0-1, convert to -1 to 1 range for coefficients)
-                float a0 = (coeff012.r - 0.5) * 4.0;
-                float a1 = (coeff012.g - 0.5) * 4.0;
-                float a2 = (coeff012.b - 0.5) * 4.0;
-                float a3 = (coeff345.r - 0.5) * 4.0;
-                float a4 = (coeff345.g - 0.5) * 4.0;
-                float a5 = coeff345.b * 2.0;
+                // Denormalize coefficients using their actual ranges
+                float a0 = denormalize(coeff012.r, u_coeffRange0);
+                float a1 = denormalize(coeff012.g, u_coeffRange1);
+                float a2 = denormalize(coeff012.b, u_coeffRange2);
+                float a3 = denormalize(coeff345.r, u_coeffRange3);
+                float a4 = denormalize(coeff345.g, u_coeffRange4);
+                float a5 = denormalize(coeff345.b, u_coeffRange5);
 
                 // Light direction components
                 float lu = u_lightDir.x;
@@ -86,8 +98,13 @@ class RTIRenderer {
                                   a4 * lv +
                                   a5;
 
+                // PTM luminance is typically in 0-255 range, normalize to 0-1
+                luminance = luminance / 255.0;
+
+                // Get the base luminance (a5) normalized
+                float baseLuminance = a5 / 255.0;
+
                 // Compute a simple specular component
-                // Using the normal direction (a3, a4 approximate the normal x, y)
                 vec3 normal = texture2D(u_normalTex, v_texCoord).rgb * 2.0 - 1.0;
 
                 // Light vector (lu, lv, sqrt(1 - lu² - lv²))
@@ -106,23 +123,24 @@ class RTIRenderer {
                     gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);
                 } else if (u_viewMode == 1) {
                     // Specular-only mode (grayscale specular highlight)
-                    float spec = specular * u_specularEnhancement;
+                    // Show the luminance variation from the PTM (difference from base)
+                    float lumVariation = (luminance - baseLuminance) * 2.0 + 0.5;
+                    lumVariation = clamp(lumVariation * u_specularEnhancement, 0.0, 1.0);
 
-                    // Also include the PTM luminance variation
-                    float ptmSpec = max(0.0, luminance - a5) * 2.0;
-                    spec = max(spec, ptmSpec * u_specularEnhancement);
-
-                    gl_FragColor = vec4(vec3(spec), 1.0);
+                    gl_FragColor = vec4(vec3(lumVariation), 1.0);
                 } else {
                     // Default mode - full color with relighting
                     vec3 baseColor = texture2D(u_rgbTex, v_texCoord).rgb;
 
                     // Apply PTM luminance modulation
-                    luminance = clamp(luminance, 0.0, 2.0);
-                    vec3 diffuse = baseColor * luminance * u_diffuseGain;
+                    // Modulate the base color by the ratio of current luminance to base luminance
+                    float lumRatio = baseLuminance > 0.01 ? luminance / baseLuminance : luminance;
+                    lumRatio = clamp(lumRatio * u_diffuseGain, 0.0, 2.0);
+
+                    vec3 diffuse = baseColor * lumRatio;
 
                     // Add specular highlight
-                    vec3 specColor = vec3(1.0, 1.0, 0.95) * specular * u_specularEnhancement * 0.5;
+                    vec3 specColor = vec3(1.0, 1.0, 0.95) * specular * u_specularEnhancement * 0.3;
 
                     vec3 finalColor = diffuse + specColor;
                     gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), 1.0);
@@ -158,7 +176,13 @@ class RTIRenderer {
             lightDir: gl.getUniformLocation(this.program, 'u_lightDir'),
             viewMode: gl.getUniformLocation(this.program, 'u_viewMode'),
             specularEnhancement: gl.getUniformLocation(this.program, 'u_specularEnhancement'),
-            diffuseGain: gl.getUniformLocation(this.program, 'u_diffuseGain')
+            diffuseGain: gl.getUniformLocation(this.program, 'u_diffuseGain'),
+            coeffRange0: gl.getUniformLocation(this.program, 'u_coeffRange0'),
+            coeffRange1: gl.getUniformLocation(this.program, 'u_coeffRange1'),
+            coeffRange2: gl.getUniformLocation(this.program, 'u_coeffRange2'),
+            coeffRange3: gl.getUniformLocation(this.program, 'u_coeffRange3'),
+            coeffRange4: gl.getUniformLocation(this.program, 'u_coeffRange4'),
+            coeffRange5: gl.getUniformLocation(this.program, 'u_coeffRange5')
         };
     }
 
@@ -247,13 +271,26 @@ class RTIRenderer {
         const { width, height, coefficients } = ptmData;
         const pixelCount = width * height;
 
+        // Find min/max for each coefficient to determine proper scaling
+        this.coeffRanges = [];
+        for (let c = 0; c < 6; c++) {
+            let min = Infinity, max = -Infinity;
+            for (let i = 0; i < pixelCount; i++) {
+                const val = coefficients[c][i];
+                if (val < min) min = val;
+                if (val > max) max = val;
+            }
+            this.coeffRanges.push({ min, max });
+            console.log(`Coefficient a${c}: min=${min.toFixed(2)}, max=${max.toFixed(2)}`);
+        }
+
         // First texture: a0, a1, a2 packed into RGB
         const coeff0Data = new Uint8Array(pixelCount * 4);
         for (let i = 0; i < pixelCount; i++) {
-            // Normalize coefficients to 0-255 range (assuming -2 to 2 range)
-            coeff0Data[i * 4] = Math.floor((coefficients[0][i] / 4 + 0.5) * 255);
-            coeff0Data[i * 4 + 1] = Math.floor((coefficients[1][i] / 4 + 0.5) * 255);
-            coeff0Data[i * 4 + 2] = Math.floor((coefficients[2][i] / 4 + 0.5) * 255);
+            // Normalize each coefficient to 0-255 based on its actual range
+            coeff0Data[i * 4] = this.normalizeCoeff(coefficients[0][i], 0);
+            coeff0Data[i * 4 + 1] = this.normalizeCoeff(coefficients[1][i], 1);
+            coeff0Data[i * 4 + 2] = this.normalizeCoeff(coefficients[2][i], 2);
             coeff0Data[i * 4 + 3] = 255;
         }
 
@@ -262,13 +299,24 @@ class RTIRenderer {
         // Second texture: a3, a4, a5 packed into RGB
         const coeff1Data = new Uint8Array(pixelCount * 4);
         for (let i = 0; i < pixelCount; i++) {
-            coeff1Data[i * 4] = Math.floor((coefficients[3][i] / 4 + 0.5) * 255);
-            coeff1Data[i * 4 + 1] = Math.floor((coefficients[4][i] / 4 + 0.5) * 255);
-            coeff1Data[i * 4 + 2] = Math.floor(Math.max(0, Math.min(1, coefficients[5][i] / 2)) * 255);
+            coeff1Data[i * 4] = this.normalizeCoeff(coefficients[3][i], 3);
+            coeff1Data[i * 4 + 1] = this.normalizeCoeff(coefficients[4][i], 4);
+            coeff1Data[i * 4 + 2] = this.normalizeCoeff(coefficients[5][i], 5);
             coeff1Data[i * 4 + 3] = 255;
         }
 
         this.coeffTex1 = this.createTexture(coeff1Data, width, height);
+    }
+
+    /**
+     * Normalize a coefficient value to 0-255 range
+     */
+    normalizeCoeff(value, coeffIndex) {
+        const range = this.coeffRanges[coeffIndex];
+        const span = range.max - range.min;
+        if (span === 0) return 128;
+        const normalized = (value - range.min) / span;
+        return Math.max(0, Math.min(255, Math.floor(normalized * 255)));
     }
 
     /**
@@ -425,6 +473,16 @@ class RTIRenderer {
 
         gl.uniform1f(this.uniformLocations.specularEnhancement, this.specularEnhancement);
         gl.uniform1f(this.uniformLocations.diffuseGain, this.diffuseGain);
+
+        // Set coefficient ranges for denormalization
+        if (this.coeffRanges) {
+            gl.uniform2f(this.uniformLocations.coeffRange0, this.coeffRanges[0].min, this.coeffRanges[0].max);
+            gl.uniform2f(this.uniformLocations.coeffRange1, this.coeffRanges[1].min, this.coeffRanges[1].max);
+            gl.uniform2f(this.uniformLocations.coeffRange2, this.coeffRanges[2].min, this.coeffRanges[2].max);
+            gl.uniform2f(this.uniformLocations.coeffRange3, this.coeffRanges[3].min, this.coeffRanges[3].max);
+            gl.uniform2f(this.uniformLocations.coeffRange4, this.coeffRanges[4].min, this.coeffRanges[4].max);
+            gl.uniform2f(this.uniformLocations.coeffRange5, this.coeffRanges[5].min, this.coeffRanges[5].max);
+        }
 
         // Draw
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
