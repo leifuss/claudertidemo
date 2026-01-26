@@ -125,33 +125,28 @@ class PTMParser {
 
         if (isLRGB) {
             // LRGB format: coefficients shared across all color channels
-            // Data order: for each scan line (bottom to top):
-            //   RGB values for ALL pixels in row (width * 3 bytes)
-            //   Then 6 coefficient values for ALL pixels in row (width * 6 bytes)
+            // Data is interleaved per-pixel: [R, G, B, a0, a1, a2, a3, a4, a5] for each pixel
+            // Scanlines are stored bottom-up
 
-            const bytesPerLine = width * 9; // 3 RGB + 6 coefficients per pixel
+            const bytesPerLine = width * 9; // 9 bytes per pixel (3 RGB + 6 coefficients)
 
             for (let y = 0; y < height; y++) {
                 // PTM files are stored bottom-up, we want top-down
                 const destY = height - 1 - y;
                 const lineOffset = offset + y * bytesPerLine;
 
-                // RGB data comes first for the entire row
-                const rgbOffset = lineOffset;
-                // Coefficient data follows after all RGB values
-                const coeffOffset = lineOffset + width * 3;
-
                 for (let x = 0; x < width; x++) {
+                    const srcIdx = lineOffset + x * 9;
                     const destIdx = destY * width + x;
 
-                    // Read RGB (stored sequentially for entire row first)
-                    rgb[destIdx * 3] = dataView.getUint8(rgbOffset + x * 3);
-                    rgb[destIdx * 3 + 1] = dataView.getUint8(rgbOffset + x * 3 + 1);
-                    rgb[destIdx * 3 + 2] = dataView.getUint8(rgbOffset + x * 3 + 2);
+                    // Read RGB (first 3 bytes of each pixel)
+                    rgb[destIdx * 3] = dataView.getUint8(srcIdx);
+                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 1);
+                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 2);
 
-                    // Read 6 coefficients (stored after all RGB, sequentially per pixel)
+                    // Read 6 coefficients (bytes 3-8 of each pixel)
                     for (let c = 0; c < 6; c++) {
-                        const rawValue = dataView.getUint8(coeffOffset + x * 6 + c);
+                        const rawValue = dataView.getUint8(srcIdx + 3 + c);
                         coefficients[c][destIdx] = (rawValue - bias[c]) * scale[c];
                     }
                 }
