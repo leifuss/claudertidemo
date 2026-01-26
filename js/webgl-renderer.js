@@ -133,10 +133,10 @@ class RTIRenderer {
                     vec3 baseColor = texture2D(u_rgbTex, v_texCoord).rgb;
 
                     // PTM luminance directly modulates the color
-                    // The polynomial gives absolute luminance in ~0-255 range
+                    // luminance is already in 0-1 range from normalization above
                     // Clamp to valid range and apply
-                    luminance = clamp(luminance, 0.0, 255.0);
-                    float lumFactor = luminance / 255.0 * u_diffuseGain;
+                    luminance = clamp(luminance, 0.0, 1.0);
+                    float lumFactor = luminance * u_diffuseGain;
 
                     vec3 diffuse = baseColor * lumFactor;
 
