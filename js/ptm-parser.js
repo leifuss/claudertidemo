@@ -152,32 +152,32 @@ class PTMParser {
         const rgb = new Uint8Array(pixelCount * 3);
 
         if (isLRGB) {
-            // PTM_1.2 LRGB format: PLANAR storage
-            // First 6 planes of coefficients (each width*height bytes)
-            // Then RGB data (width*height*3 bytes)
+            // PTM_1.2 LRGB format:
+            // Coefficients are interleaved per-pixel (6 bytes per pixel)
+            // Then RGB data comes after (3 bytes per pixel)
             // Scanlines stored bottom-to-top
 
-            console.log('Parsing PTM_1.2 LRGB with PLANAR storage');
+            console.log('Parsing PTM_1.2 LRGB - coefficients interleaved, then RGB');
 
-            // Read 6 coefficient planes
-            for (let c = 0; c < 6; c++) {
-                const planeOffset = offset + c * pixelCount;
+            // Read interleaved coefficients: [a0,a1,a2,a3,a4,a5] per pixel
+            for (let y = 0; y < height; y++) {
+                // PTM stores bottom-to-top, we want top-to-bottom
+                const srcY = height - 1 - y;
 
-                for (let y = 0; y < height; y++) {
-                    // PTM stores bottom-to-top, we want top-to-bottom
-                    const srcY = height - 1 - y;
+                for (let x = 0; x < width; x++) {
+                    const srcPixel = srcY * width + x;
+                    const destPixel = y * width + x;
+                    const srcIdx = offset + srcPixel * 6; // 6 coefficients per pixel
 
-                    for (let x = 0; x < width; x++) {
-                        const srcIdx = planeOffset + srcY * width + x;
-                        const destIdx = y * width + x;
-
-                        const rawValue = dataView.getUint8(srcIdx);
-                        coefficients[c][destIdx] = (rawValue - bias[c]) * scale[c];
+                    // Read 6 coefficients for this pixel
+                    for (let c = 0; c < 6; c++) {
+                        const rawValue = dataView.getUint8(srcIdx + c);
+                        coefficients[c][destPixel] = (rawValue - bias[c]) * scale[c];
                     }
                 }
             }
 
-            // Read RGB data (after all coefficient planes)
+            // Read RGB data (after all coefficient data: 6 bytes * pixelCount)
             const rgbOffset = offset + 6 * pixelCount;
 
             for (let y = 0; y < height; y++) {
@@ -185,16 +185,18 @@ class PTMParser {
                 const srcY = height - 1 - y;
 
                 for (let x = 0; x < width; x++) {
-                    const srcIdx = rgbOffset + (srcY * width + x) * 3;
-                    const destIdx = y * width + x;
+                    const srcPixel = srcY * width + x;
+                    const destPixel = y * width + x;
+                    const srcIdx = rgbOffset + srcPixel * 3;
 
-                    rgb[destIdx * 3] = dataView.getUint8(srcIdx);
-                    rgb[destIdx * 3 + 1] = dataView.getUint8(srcIdx + 1);
-                    rgb[destIdx * 3 + 2] = dataView.getUint8(srcIdx + 2);
+                    rgb[destPixel * 3] = dataView.getUint8(srcIdx);
+                    rgb[destPixel * 3 + 1] = dataView.getUint8(srcIdx + 1);
+                    rgb[destPixel * 3 + 2] = dataView.getUint8(srcIdx + 2);
                 }
             }
 
-            console.log('Coefficient plane 0, first 10 values:', Array.from(coefficients[0].slice(0, 10)));
+            console.log('Coefficient[0] first 10 values:', Array.from(coefficients[0].slice(0, 10)));
+            console.log('Coefficient[5] first 10 values:', Array.from(coefficients[5].slice(0, 10)));
             console.log('RGB first 10 values:', Array.from(rgb.slice(0, 10)));
         } else {
             // RGB format: 18 coefficient planes (6 per channel)

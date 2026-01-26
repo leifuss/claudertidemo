@@ -132,12 +132,13 @@ class RTIRenderer {
                     // Default mode - full color with relighting
                     vec3 baseColor = texture2D(u_rgbTex, v_texCoord).rgb;
 
-                    // Apply PTM luminance modulation
-                    // Modulate the base color by the ratio of current luminance to base luminance
-                    float lumRatio = baseLuminance > 0.01 ? luminance / baseLuminance : luminance;
-                    lumRatio = clamp(lumRatio * u_diffuseGain, 0.0, 2.0);
+                    // PTM luminance directly modulates the color
+                    // The polynomial gives absolute luminance in ~0-255 range
+                    // Clamp to valid range and apply
+                    luminance = clamp(luminance, 0.0, 255.0);
+                    float lumFactor = luminance / 255.0 * u_diffuseGain;
 
-                    vec3 diffuse = baseColor * lumRatio;
+                    vec3 diffuse = baseColor * lumFactor;
 
                     // Add specular highlight
                     vec3 specColor = vec3(1.0, 1.0, 0.95) * specular * u_specularEnhancement * 0.3;
