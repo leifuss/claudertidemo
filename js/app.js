@@ -158,24 +158,27 @@ class RTIViewerApp {
     }
 
     /**
-     * Load demo PTM data
+     * Load demo PTM data (Athenian Tetradrachm)
      */
-    loadDemo() {
+    async loadDemo() {
         this.showLoading(true);
 
-        // Use setTimeout to allow the loading overlay to render
-        setTimeout(() => {
-            try {
-                const ptmData = PTMParser.createDemoData(512, 512);
-                this.initViewer(ptmData);
-                this.showViewerSection();
-            } catch (error) {
-                console.error('Error creating demo:', error);
-                alert('Error creating demo: ' + error.message);
-            } finally {
-                this.showLoading(false);
+        try {
+            const response = await fetch('Athenian_Tetradrachma_Obv.ptm');
+            if (!response.ok) {
+                throw new Error('Failed to load demo file');
             }
-        }, 100);
+            const buffer = await response.arrayBuffer();
+            const ptmData = await this.parser.parse(buffer);
+
+            this.initViewer(ptmData);
+            this.showViewerSection();
+        } catch (error) {
+            console.error('Error loading demo:', error);
+            alert('Error loading demo: ' + error.message);
+        } finally {
+            this.showLoading(false);
+        }
     }
 
     /**
