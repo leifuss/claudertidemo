@@ -86,4 +86,4 @@ Requires a browser with WebGL support:
 
 ## License
 
-MIT License - Feel free to use and modify for your own projects.
+This is an experimental piece of software bulit using AI. It is not a licensed or licensable product.
